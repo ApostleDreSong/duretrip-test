@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jet-app
+  labels:
+    app: jet-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jet-app
+  template:
+    metadata:
+      labels:
+        app: jet-app
+    spec:
+      containers:
+        - name: jet-app
+          image: duretrip/jet:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8008
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "0.2"
+            limits:
+              memory: "512Mi"
+              cpu: "0.5"
+          env:
+            - name: DATABASE_TYPE
+              value: {{DATABASE_TYPE}}
+            - name: DATABASE_NAME
+              value: {{JET_DB_NAME}}
+            - name: DATABASE_HOST
+              value: {{DATABASE_HOST}}
+
+            - name: DATABASE_PORT
+              value: {{DATABASE_PORT}}
+
+            - name: JET_DATABASE_URL  # Setting Database name from configMap
+              value: "{{DATABASE_TYPE}}://{{JET_DB_USER}}:{{JET_DB_PASSWORD}}@{{DATABASE_HOST}}:{{DATABASE_PORT}}/{{JET_DB_NAME}}"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: username
+
+            - name: DATABASE_USERNAME
+              value: {{RABBITMQ_USER_NAME}}
+
+            - name: DATABASE_PASSWORD
+              value: {{RABBITMQ_USER_PASSWORD}}
+
+            - name: RABBITMQ_CONNECTION_URL
+              value: amqp://{{RABBITMQ_USER_NAME}}:{{RABBITMQ_USER_PASSWORD}}@{{RABBITMQ_HOST}}:{{RABBITMQ_PORT}}
+
+            - name: RABBITMQ_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: rabbitmq-config
+                  key: RABBITMQ_HOST
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: rabbitmq-config
+                  key: RABBITMQ_USER
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                configMapKeyRef:
+                  name: rabbitmq-config
+                  key: RABBITMQ_PASS
+            - name: RABBITMQ_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: rabbitmq-config
+                  key: RABBITMQ_USER
+            - name: RABBITMQ_PASS
+              valueFrom:
+                configMapKeyRef:
+                  name: rabbitmq-config
+                  key: RABBITMQ_PASS
+            - name: RABBITMQ_PAYMENT_QUEUE
+              valueFrom:
+                configMapKeyRef:
+                  name: rabbitmq-config
+                  key: RABBITMQ_PAYMENT_QUEUE
+            - name: RABBITMQ_AUTH_QUEUE
+              valueFrom:
+                configMapKeyRef:
+                  name: rabbitmq-config
+                  key: RABBITMQ_AUTH_QUEUE
+                  
+            - name: RABBITMQ_JET_QUEUE
+              value: {{RABBITMQ_JET_QUEUE}}
+
+            - name: RABBITMQ_API_GATEWAY_QUEUE
+              value: {{RABBITMQ_API_GATEWAY_QUEUE}}
+
+            - name: AUTH_JWT_SECRET
+              value: secret
+            - name: AUTH_JWT_TOKEN_EXPIRES_IN
+              value: '15'
+            - name: AUTH_REFRESH_SECRET
+              value: secret_for_refresh
+            - name: AUTH_REFRESH_TOKEN_EXPIRES_IN
+              value: 3650d
+            - name: APP_PORT
+              value: "8008"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jet-svc
+spec:
+  selector:
+    app: jet-app
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8008
+      protocol: TCP
